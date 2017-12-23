@@ -1,0 +1,71 @@
+library("C50")
+library("caret")
+library("party")
+library("rpart")
+data(churn)
+#remove state,area code, account lengths
+churnTrain=churnTrain[,!names(churnTrain) %in% c("state","area_code","account_length")]
+str(churnTrain)
+split.data=function(data,s=777)
+{
+  set.seed(s)
+  index=sample(2,nrow(data),replace=TRUE,prob=c(0.7,0.3))
+  train=data[index==1,]
+  test=data[index==2,]
+  return(list(train=train,test=test))
+}
+dataset= split.data(churnTrain)
+churn.train = dataset$train
+churn.test = dataset$test
+
+#fit using logistic regression
+fit = glm(churn ~ ., data = churn.train, family=binomial)
+summary(fit)
+#Let's use significant variables (p<0.05) only to train the classification model
+fit = glm(churn ~ international_plan + voice_mail_plan+total_intl_calls+number_customer_service_calls, data = churn.train, family=binomial)
+summary(fit)
+
+churn.out = ifelse(churn.test$churn == "yes", 1, 0)
+pred_class = churn.out
+pred_class[pred<=.5] = 1- pred_class[pred<=.5]
+table = table(churn.out, pred_class)
+confusionMatrix(table)
+
+churn.rp<-rpart(churn~.,data=churn.train)
+#plot cost complexity parameters
+plotcp(churn.rp)
+#examine the complexity parameters
+printcp(churn.rp)
+
+#prune tree to remove overfitting
+min(churn.rp$cptable[,"xerror"])
+#Find the record with the lowest cross-validation errors:
+which.min(churn.rp$cptable[,"xerror"])
+#Get the "CP" from the list with the lowest cross-validation errors:
+churn.cp = churn.rp$cptable[7,"CP"]
+churn.cp
+#Prune the tree :
+prune.tree = prune(churn.rp, cp= churn.cp)
+#Visualize the classification tree by using the plot and text function:
+plot(prune.tree, margin= 0.1)
+text(prune.tree, all=TRUE , use.n=TRUE)
+
+#predict
+predictions = predict(prune.tree, testset, type="class")
+table(testset$churn, predictions)
+
+#Test classification error :
+confusionMatrix(table(predictions, testset$churn))
+
+Accuracy : 0.9327
+
+#Random forest
+library(randomForest)
+set.seed(777)
+fit<-randomForest(churn~.,data=churn.train,importance=TRUE,ntree=100)
+pred<-predict(fit, churn.test)
+table=table(churn.test$churn,pred)
+confusionMatrix(table)
+misClasError<-mean(pred!=churn.test$churn)
+print(paste('Accuracy',1-misClasError))
+#"Accuracy 0.948475289169295"
