@@ -1,0 +1,53 @@
+#Code for Predicting Churn Page (Logistic Regression)
+#https://wordpress.com/page/predictiveanalysis.blog/54
+library(C50)
+library(caret)
+churn=data (churn)
+#(get the list of features)
+names(churnTrain)
+#remove state, area code, account lenghts
+churnTrain=churnTrain[, !names(churnTrain) %in% c("state","account_length","area_code" )]
+names(churnTrain)
+str(churnTrain)
+# split the data into test and train
+#defining a function to do this
+
+split.data=function(data,s=777)
+{
+  set.seed(s)
+  index=sample(2,nrow(data),replace=TRUE,prob=c(0.7,0.3))
+  train=data[index==1,]
+  test=data[index==2,]
+  return(list(train=train,test=test))
+}
+#split into test and train
+dataset=split.data(churnTrain)
+churn.train=dataset$train
+churn.test=dataset$test
+
+#fit using logistic regression
+fit = glm(churn ~ ., data = churn.train, family=binomial)
+summary(fit)
+#Let's use significant variables (p<0.05) only to train the classification model
+fit = glm(churn ~ international_plan + voice_mail_plan+total_intl_calls+number_customer_service_calls, data = churn.train, family=binomial)
+ored
+#predict outcome of the categorical dependentvarialble churn in test set using the fit from train
+predict_test=predict(fit,churn.test,type="response")
+#output is the probablibility of the matching label, test vs train
+#a result equal to 0.5 and below, suggesting that the predicted label does not match the label of the testing dataset, 
+#and a probability above 0.5 indicates that the predicted label matches the label of the testing dataset. 
+label=predict_test >0.5
+#summary function to summarize if the predicted label matches test label
+summary(label)
+tb=table(churn.test$churn,label)
+tb
+
+#Another way of represting the statistics
+churn.out = ifelse(churn.test$churn == "yes", 1, 0)
+pred_class = churn.out
+pred_class[pred<=.5] = 1- pred_class[pred<=.5]
+(table = table(churn.out, pred_class))
+#using confusionMatrix to measure classification performance
+confusionMatrix(table)
+
+
