@@ -1,0 +1,84 @@
+#https://learning.oreilly.com/library/view/machine-learning-with/9781783982042/ch05s05.html
+#https://learning.oreilly.com/library/view/machine-learning-with/9781783982042/ch05s03.html
+library(C50)
+library(caret)
+library(e1071)
+
+data(churn)
+#(get the list of features)
+names(churnTrain)
+#remove state, area code, account lenghts
+churnTrain=churnTrain[, !names(churnTrain) %in% c("state","account_length","area_code" )]
+names(churnTrain)
+str(churnTrain)
+# split the data into test and train
+#defining a function to do this
+
+split.data=function(data,s=777)
+{
+  set.seed(s)
+  index=sample(2,nrow(data),replace=TRUE,prob=c(0.7,0.3))
+  train=data[index==1,]
+  test=data[index==2,]
+  return(list(train=train,test=test))
+}
+dataset=split.data(churnTrain)
+churn.train=dataset$train
+churn.test=dataset$test
+
+library(rpart)
+library(rpart.plot)
+#build classification tree using rpart function
+churn.rp<-rpart(churn~.,data=churn.train) 
+#n=sample size
+#loss=misclassification cost
+#yval=classified membership (no/yes)
+#yprob=probabilities of two classes 
+#yprob(left)=Probability reaching label no
+#yprob(right)=Probability reaching label yes
+
+names(churn.rp)
+#summarize model
+summary(churn.rp)
+
+#plot cost complexity parameters 
+plotcp(churn.rp)
+#examine the complexity parameters 
+printcp(churn.rp)
+
+plot(churn.rp, uniform=TRUE, branch=0.6, margin=0.1)
+text(churn.rp, all=TRUE, use.n = TRUE)
+
+prediction = predict(churn.rp, churn.test, type="class")
+table(churn.test$churn, prediction)
+#using the confusion matrix
+confusionMatrix(churn.test$churn, prediction)
+
+#prune tree to remove overfitting 
+#find the min cross-validation (CV) error from cptable
+min(churn.rp$cptable[,"xerror"]) 
+#Find the record with the lowest cross-validation errors: 
+which.min(churn.rp$cptable[,"xerror"]) 
+#Get the "CP" from the list with the lowest cross-validation errors: 
+churn.cp = churn.rp$cptable[7,"CP"] 
+churn.cp 
+#Prune the tree :set cp parameter to vpvalue with lowest CV errors 
+pruned.tree = prune(churn.rp, cp= churn.cp)
+#Visualize the classification tree by using the plot and text function: 
+plot(pruned.tree, margin= 0.1) 
+text(pruned.tree, all=TRUE , use.n=TRUE)
+
+prediction_rpart = predict(pruned.tree, churn.test, type="class") 
+table(churn.test$churn, prediction_rpart)
+confusionMatrix(prediction_rpart, churn.test$churn)
+
+#Random forest 
+library(randomForest) 
+set.seed(777) 
+fit<-randomForest(churn~.,data=churn.train,importance=TRUE,ntree=100) 
+pred<-predict(fit, churn.test)
+table=table(churn.test$churn,pred) 
+confusionMatrix(table) 
+misClasError<-mean(pred!=churn.test$churn) 
+print(paste('Accuracy',1-misClasError))
+# "Accuracy 0.948475289169295"
