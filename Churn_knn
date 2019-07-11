@@ -1,0 +1,49 @@
+library(C50)
+library(caret)
+library(e1071)
+
+data(churn)
+
+#(get the list of features)
+names(churnTrain)
+#replace Yes NO with 0,1 factors for international_plan and voice_mail_plan
+levels(churnTrain$international_plan) = list("0"="no", "1"="yes")
+levels(churnTrain$voice_mail_plan) = list("0"="no", "1"="yes")
+summary(churnTrain)
+#remove state, area code, account lenghts
+churnTrain=churnTrain[, !names(churnTrain) %in% c("state","account_length","area_code" )]
+names(churnTrain)
+str(churnTrain)
+# split the data into test and train
+#defining a function to do this
+
+split.data=function(data,s=777)
+{
+  set.seed(s)
+  index=sample(2,nrow(data),replace=TRUE,prob=c(0.7,0.3))
+  train=data[index==1,]
+  test=data[index==2,]
+  return(list(train=train,test=test))
+}
+dataset=split.data(churnTrain)
+churn.train=dataset$train
+churn.test=dataset$test
+?knn
+#https://dataaspirant.com/2017/01/09/knn-implementation-r-using-caret-package/
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(3333)
+knn_fit <- train(churn ~., data = churn.train, method = "knn",
+                 trControl=trctrl,
+                 preProcess = c("center", "scale"),
+                 tuneLength = 10)
+test_pred <- predict(knn_fit, newdata = churn.test)
+table(test_pred, churn.test$churn)
+confusionMatrix(test_pred, churn.test$churn)
+
+
+
+knn_model <- train(Churn ~ ., data = churnTrain, 
+                   method = "knn", trControl = control,
+                   preProcess = c("center","scale"), tuneLength = 50)
+
+churn.knn  = knn(churn.train[,! names(churn.train) %in% c("churn")], churn.test[,! names(churn.test) %in% c("churn")], churn.test$churn, k=3)
